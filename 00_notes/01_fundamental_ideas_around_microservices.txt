@@ -1,0 +1,83 @@
+//---------------- 1. How to Get Help
+## Microservices Course - Introduction
+
+### Instructor: Steven Grider
+
+- Course Overview
+  - Covers a tremendous amount of content.
+  - Will dive into microservices architecture, best practices, and implementation.
+
+- Getting Help
+  1. Udemy Discussion Boards
+     - First place to check if stuck.
+     - Chances are someone else had the same issue.
+     - Possible solutions might already be posted.
+  2. Direct Contact with Instructor
+     - Can reach out via Udemy.
+     - Twitter is another option.
+  3. Instructor Response Time
+     - Answers questions Monday - Friday.
+     - Spends 1-3 hours daily responding.
+     - No responses on weekends.
+     - If asking a question on a weekend, follow up on Monday.
+
+- Next Steps
+  - This was just an introduction.
+  - Moving to the first technical topic in the next video.
+
+//---------------- 2. What Is a Microservice
+
+What is a Microservice?
+
+- First, reviewing how servers are typically built now.
+- Most people are familiar with monolithic architecture.
+- In a monolithic server, all code required for an application is in a single codebase.
+- The entire application is deployed as one discrete unit.
+
+Monolithic Server Workflow:
+- A user request comes from a browser or mobile device.
+- It passes through pre-processing middleware.
+- It then reaches a router, which decides the next steps.
+- The request is forwarded to a specific feature.
+- That feature may interact with a database, then send back a response.
+
+Characteristics of a Monolithic Server:
+- Contains all routing, middleware, business logic, and database access in one place.
+- Implements all features of the application within a single system.
+
+### Transition to Microservices
+- Making one key change to the monolithic architecture introduces microservices.
+- A microservice contains everything needed to implement one specific feature.
+- This means each feature has its own routing, middleware, business logic, and database access.
+
+Key Difference:
+- Monolith: One codebase implements all features.
+- Microservices: Separate codebases for each feature, each deployed independently.
+
+Microservices Architecture Overview:
+- Features are split into individual services.
+- Each service is self-contained.
+- Every service has:
+  - Its own middleware.
+  - Its own router.
+  - Even its own database!
+
+Advantages of Microservices:
+- If one service fails, the rest of the application continues running.
+- No service depends on others to function correctly.
+
+Final Definition:
+- A microservice contains all the code required to make a single feature work correctly.
+
+//---------------- 3. Data in Microservices
+
+//---------------- 4. Big Problems with Data
+
+//---------------- 5. Sync Communication Between Services
+
+//---------------- 6. Event-Based Communication
+
+//---------------- 7. A Crazy Way of Storing Data
+
+//---------------- 8. Pros and Cons of Async Communication
+

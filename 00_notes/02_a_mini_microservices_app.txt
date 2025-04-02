@@ -1,0 +1,15 @@
+//---------------- 1. App Overview
+
+//---------------- 2. Project Setup
+
+//---------------- 3. Posts Service Creation
+
+//---------------- 4. Testing the Posts Service
+
+//---------------- 5. Implementing a Comments Service
+
+//---------------- 6. Quick Comments Test
+
+//---------------- 7. React Project Setup
+
+
