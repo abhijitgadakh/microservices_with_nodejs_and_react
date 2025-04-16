@@ -1,6 +1,90 @@
 //---------------- 1. App Overview
 
+Now that we've covered the communication patterns with microservices, we’re diving into actual code.
+
+Goal of this project: 
+- Get hands-on experience with microservices architecture.
+- Build as much as possible from scratch to understand what’s going on.
+
+This is a simple application to showcase the patterns:
+- It's not meant to be a template for future projects because in real-world projects we use packages instead of building everything manually.
+- This application is just a starting point. A more complex project will come later in the course.
+
+What are we building?
+- A simple blog-like application where users can create posts and add comments to them.
+- Posts will only have titles for simplicity (no body content).
+- After creating a post, the title will be displayed with the number of comments.
+- Users can add comments, and the number of comments for each post will increment.
+
+Technical Breakdown:
+- We’ll need two types of services: 
+  - **Post Service**: Handles creating and listing posts.
+  - **Comment Service**: Handles creating and listing comments.
+
+Service Responsibilities:
+- **Post Service**: 
+  - Create a post
+  - List all posts
+- **Comment Service**: 
+  - Create a comment tied to a specific post
+  - List comments associated with a post
+
+Hidden Complexity:
+- The Comment Service will have complexity because it needs to link comments to posts.
+- To create a comment, the system needs to know what posts exist, so it will need to use asynchronous or synchronous communication.
+- When listing comments, they should be filtered by the posts they are tied to (i.e., retrieving comments for the top 10 most popular posts).
+
+Even though the app seems simple, the underlying structure will introduce challenges. These complexities will become clearer as we start implementing the services.
+
+
 //---------------- 2. Project Setup
+
+We are starting to set up our project and will quickly review the architecture and initial setup steps.
+
+Architecture Overview:
+- The browser will run a React application.
+- The React application communicates with two services via network requests:
+  - Post Service
+  - Comment Service
+- Both services are Express-based applications.
+- For this project, data will be stored in memory (no databases) to keep the focus on understanding communication patterns.
+
+Setup Plan:
+1. Create a React application using Create React App.
+2. Scaffold two Express-based services: Post Service and Comment Service.
+3. Use three terminal windows to manage the setup:
+   - One for the React client.
+   - One for the Post Service.
+   - One for the Comment Service.
+
+Steps:
+- In the terminal, navigate to your workspace directory and create a folder named `blog` to hold the entire project.
+- Generate the React application:
+  - Run `npx create-react-app client` to create the client directory for the React app.
+- While the React app installs, set up the Post Service:
+  - Create a `posts` folder inside the `blog` directory.
+  - Navigate to the `posts` folder.
+  - Initialize a `package.json` file using `npm init -y`.
+  - Install dependencies: `npm install express cors axios nodemon`.
+- Repeat the same process for the Comment Service:
+  - Create a `comments` folder inside the `blog` directory.
+  - Navigate to the `comments` folder.
+  - Initialize a `package.json` file using `npm init -y`.
+  - Install dependencies: `npm install express cors axios nodemon`.
+
+Managing Terminal Windows:
+- Ensure you have three terminal windows:
+  - One in the `client` directory for the React app.
+  - One in the `posts` directory for the Post Service.
+  - One in the `comments` directory for the Comment Service.
+- Keep track of which terminal window corresponds to which part of the project.
+
+Note:
+- Managing multiple terminal windows can be confusing, so stay organized and aware of the active terminal.
+- To simplify switching between windows, you might consider tiling them for better visibility in the next steps.
+
+This concludes the initial setup. We'll begin writing code in the upcoming steps.
+
 
 //---------------- 3. Posts Service Creation
 
