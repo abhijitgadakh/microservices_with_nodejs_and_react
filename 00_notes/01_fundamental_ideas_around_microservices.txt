@@ -1,7 +1,8 @@
 //---------------- 1. How to Get Help
-## Microservices Course - Introduction
 
-### Instructor: Steven Grider
+Microservices Course - Introduction
+
+Instructor: Steven Grider
 
 - Course Overview
   - Covers a tremendous amount of content.
@@ -45,7 +46,7 @@ Characteristics of a Monolithic Server:
 - Contains all routing, middleware, business logic, and database access in one place.
 - Implements all features of the application within a single system.
 
-### Transition to Microservices
+Transition to Microservices
 - Making one key change to the monolithic architecture introduces microservices.
 - A microservice contains everything needed to implement one specific feature.
 - This means each feature has its own routing, middleware, business logic, and database access.
@@ -71,13 +72,384 @@ Final Definition:
 
 //---------------- 3. Data in Microservices
 
+Microservices - Data Management Challenges
+
+Key Challenges:
+1. Data Management Between Services: 
+   - Involves how data is stored and communicated across services.
+   - A significant obstacle in microservices architecture.
+
+---
+
+Key Rules for Data Management in Microservices:
+1. Each service gets its own database if needed.  
+2. Services never access another service's database.
+
+---
+
+Pattern Overview:
+- This is known as the Database Per Service Pattern:
+  - Each service operates independently by managing its own database.
+  - Improves system reliability and scalability.
+
+Why Separate Databases for Each Service?
+1. Independence:  
+   - Each service functions independently.  
+   - Avoids dependencies between services.  
+
+   Example:  
+   - Common database: If the database fails, all services crash.  
+   - Separate databases: Service A is unaffected by issues in Service B's database.
+
+2. Scalability:  
+   - Independent databases allow scaling only the ones that need it.  
+   - Avoids the bottleneck of scaling a single shared database.
+
+3. Schema Changes:  
+   - Avoids problems caused by unexpected changes in database structure by another service.  
+
+   Example:  
+   - Service B changes "name" field to "first_name" without notifying Service A.  
+   - Service A crashes due to schema mismatch.
+
+4. Database Flexibility:  
+   - Services can use the database type best suited to their needs.  
+     Example: Service A uses MongoDB, while Service B uses PostgreSQL.
+
+Challenges Yet to Explore:
+- How services communicate and share data without directly accessing each other’s databases.
+- Strategies for solving data synchronization issues.
+
+Key Takeaway:
+- The "Database Per Service" pattern ensures better uptime, scalability, and flexibility.  
+- Successful engineering teams adhere to this approach for microservices.
+
 //---------------- 4. Big Problems with Data
+
+Notes: Challenges of Data Management in Microservices
+
+- Recap of Previous Video:
+  - Microservices follow the "database per service" pattern.
+  - Services do not interact with each other's databases.
+
+- Focus of This Video:
+  - Highlight the challenges of data management between services.
+  - Example: Building a simple e-commerce application.
+
+Example Application: E-commerce
+- Features:
+  - User signup.
+  - Listing products (e.g., hats, pants, shoes).
+  - Purchasing products.
+
+- Monolithic Approach:
+  - Single server with one database containing:
+    - Users table.
+    - Products table.
+    - Orders table.
+  - Adding a new feature: "Show all products ordered by a specific user" involves:
+    - Querying users, orders, and products tables.
+  - In monolithic architecture, accessing multiple tables in one database is straightforward.
+
+Transition to Microservices
+- Splitting into Microservices:
+  - Service A: Handles user signup, with its own database for users.
+  - Service B: Manages products, with its own database for products.
+  - Service C: Handles purchasing, with its own database for orders.
+  - Each service has its isolated database.
+
+- Adding a New Feature:
+  - Introduce Service D: "Show orders made by a specific user."
+  - Challenges:
+    - Service D needs to access user, order, and product information.
+    - Rule: No service can directly query another service's database.
+
+The Core Issue
+- Why This is a Problem:
+  - Service D cannot directly fetch required data from Services A, B, and C due to the isolation rule.
+  - Traditional methods (like in monolithic systems) to retrieve data across different domains are not allowed.
+
+- Outcome:
+  - Highlights the complexity of adding new features or accessing data in microservices.
+  - Leads to the question: "How can Service D function without direct database access?"
+
+Next Steps
+- The next video will introduce two general methodologies to solve this data management problem.
 
 //---------------- 5. Sync Communication Between Services
 
-//---------------- 6. Event-Based Communication
+Notes: Synchronous Communication in Microservices
 
-//---------------- 7. A Crazy Way of Storing Data
+- Recap from Previous Video:
+  - Microservices enforce the "database per service" rule.
+  - Services cannot directly access another service's database.
+  - Highlighted challenges when a service needs data from multiple others.
 
-//---------------- 8. Pros and Cons of Async Communication
+Communication Strategies in Microservices
+- Two general communication styles:
+  - Synchronous (Sync): Direct request-response between services.
+  - Asynchronous (Async): Handled in the next video.
 
+- Note: "Sync" and "Async" in microservices are different from their meanings in JavaScript.
+
+---
+
+Synchronous Communication: Overview
+
+- Definition:
+  - One service directly communicates with another by sending requests.
+  - Requests can be in any form (e.g., HTTP, JSON exchange).
+
+- Example: E-commerce Application
+  - Scenario: Service D receives a request to show all products ordered by User ID 1.
+  - Workflow:
+    1. Service D sends a request to Service A to validate the user's existence.
+    2. Upon confirmation, Service D requests order details from Service C.
+    3. Finally, Service D requests product details from Service B.
+  - No direct database access occurs; all data is fetched through service-to-service requests.
+
+---
+
+Upsides of Synchronous Communication
+1. Simple to Understand:
+   - The workflow is straightforward—services request data from other services as needed.
+2. No Database for Some Services:
+   - Service D doesn't need its own database, reducing maintenance and costs.
+
+---
+
+Downsides of Synchronous Communication
+1. Inter-Service Dependency:
+   - If Service A, B, or C goes down, Service D fails entirely.
+2. Request Failure Propagation:
+   - If any inter-service request fails, the entire process fails (e.g., user validation failure).
+3. Performance Bottleneck:
+   - Overall request time depends on the slowest service response.
+   - Example: If a single request takes 20 seconds, the entire operation is delayed.
+4. Complex Web of Dependencies:
+   - Internal operations of services are unknown:
+     - Service A might internally request Service Q.
+     - Service Q might call Service Z, and so on.
+   - Leads to cascading dependencies and potential failure points.
+5. Request Overhead:
+   - A single operation might involve dozens or hundreds of background requests.
+   - Any failure in these chains disrupts the entire process.
+
+---
+
+Conclusion
+- Synchronous communication is easy to understand but introduces major operational challenges.
+- Key problems include dependency risks, performance bottlenecks, and failure propagation.
+- Next video will explore asynchronous communication, which addresses some of these challenges.
+
+---------------- 6. Event-Based Communication
+
+Notes on Asynchronous Communication (Method 1 - Event Bus)
+
+Overview of Async Communication
+- Async communication introduces an event bus accessible to all services.
+- Services connect to the event bus to:
+  - Emit events: Notifications about actions or occurrences.
+  - Receive events: Notifications emitted by other services.
+
+Event Bus
+- Acts as a central hub for communication.
+- Handles event routing between services.
+- A single point of failure, so must be made resilient.
+
+---
+
+Example Workflow
+Scenario:
+- Service D receives a request: "Show all products ordered by a user."
+- Service D requires data from Services A, B, and C to respond.
+
+Steps:
+1. Service D Emits an Event:
+   - Type: `user_query`
+   - Data: User ID to look up.
+
+2. Event Bus Routes the Event:
+   - Event sent to Service A.
+
+3. Service A Processes the Event:
+   - Checks if the user exists.
+   - Emits a new event:
+     - Type: `user_query_result`
+     - Data: User details (e.g., ID, name).
+
+4. Event Bus Sends the New Event:
+   - Event routed back to Service D.
+
+5. Service D Processes the Response:
+   - Handles the user data.
+   - Repeats the same process to:
+     - Query orders from Service C.
+     - Retrieve product details from Service B.
+
+---
+
+Downsides of This Approach
+1. Conceptual Complexity:
+   - Harder to understand compared to synchronous communication.
+
+2. Service Dependencies:
+   - Services still depend on each other indirectly via events.
+   - If an event fails, the overall request can fail.
+
+3. Request Timing:
+   - Response is only as fast as the slowest event.
+
+4. Web of Events:
+   - Complex chains of events can spiral out of control.
+
+5. Single Point of Failure:
+   - Event bus failure disrupts communication across services.
+
+---
+
+Summary
+- Pros:
+  - No database needed for Service D.
+
+- Cons:
+  - Shares downsides of synchronous communication with additional complexities.
+  - Rarely used in real-world scenarios due to inefficiency.
+
+---
+
+Next Step:
+- The next video will explore a more effective form of asynchronous communication.
+
+---------------- 7. A Crazy Way of Storing Data
+
+Notes on Asynchronous Communication - Service D in E-Commerce Application
+
+Introduction
+- Exploring a second way of using asynchronous communication.
+- This method is similar to the "database per service" pattern, but with a different approach.
+- Objective: Communicate between services while ensuring independence and efficiency.
+
+Service D - Goal Definition
+- Input: User ID.
+- Output: Titles and images of all products ordered by the user.
+- Goal: Create a self-contained database for Service D to efficiently fulfill its purpose.
+
+Database Design for Service D
+- Two collections:
+  1. Users: Contains User IDs and Product IDs they ordered.
+  2. Products: Contains Product IDs, Titles, and Images.
+- Example:
+  - Products:
+    - ID: 5, Title: "Pants", Image: "pants.jpeg".
+    - ID: 20, Title: "Shoes", Image: "shoes.jpeg".
+  - Users:
+    - ID: 1, Products Ordered: [5, 20].
+
+Challenges
+1. Service D isn't aware of:
+   - User sign-ups.
+   - Product creations.
+   - Product orders.
+2. Dependency on synchronous communication risks failure if Service D is down.
+
+Solution: Event-Driven Asynchronous Communication
+- Use event emitters and an event bus to communicate between services.
+
+Workflow
+1. Product Creation:
+   - Service B creates a product and emits an event:
+     - Type: `ProductCreated`
+     - Data: `{ ID: 1, Title: "Pants", Image: "pants.jpeg" }`
+   - Event bus relays the event to Service D.
+   - Service D updates its Products collection.
+
+2. User Sign-Up:
+   - Service A registers a new user and emits an event:
+     - Type: `UserCreated`
+     - Data: `{ UserID: 1 }`
+   - Event bus relays the event to Service D.
+   - Service D adds the user to its Users collection with an empty product list.
+
+3. Order Creation:
+   - Service C processes an order and emits an event:
+     - Type: `OrderCreated`
+     - Data: `{ UserID: 1, ProductID: 1 }`
+   - Event bus relays the event to Service D.
+   - Service D updates the user’s product list.
+
+Example Database State
+- Products:
+  - ID: 1, Title: "Pants", Image: "pants.jpeg".
+- Users:
+  - ID: 1, Products Ordered: [1].
+
+Advantages of Event-Driven Communication
+- Independence: Services don't rely on each other being operational.
+- Scalability: Service D can function with minimal dependencies.
+- Asynchronous events ensure non-blocking communication.
+
+Next Steps
+- Summarize and evaluate the pros and cons of this approach in the next video.
+
+
+//---------------- 8. Pros and Cons of Async Communication 
+
+Notes on Asynchronous Communication Pattern (Video 8, Section 1)
+
+Recap of Previous Video
+- Explored a bizarre and inefficient asynchronous communication pattern.
+- Important to evaluate pros and cons before dismissing the approach.
+
+---
+
+Pros of the Pattern
+1. Zero Dependencies for Service D
+   - Service D can handle requests independently without relying on other services.
+   - Example: Service D can provide user order details without querying services A, B, or C.
+   - Indirect dependencies exist (e.g., fetching data to store in the database), but Service D still operates if others fail.
+
+2. High Performance
+   - Service D stores required data in its local database.
+   - Queries are answered directly from the database, making it faster than alternatives.
+   - No need for inter-service communication during request handling.
+
+---
+
+Cons of the Pattern
+1. Data Duplication
+   - Some data (e.g., product title, image) is duplicated across services.
+   - Not 100% duplication, as only specific fields are stored, but duplication still occurs.
+
+2. Stale Data Risk
+   - Over time, duplicated data can become outdated.
+   - Requires strategies to manage and update stale data.
+
+3. Increased Complexity
+   - Writing and managing event emission and listeners adds overhead.
+   - Additional effort needed to maintain and understand the extra code.
+
+---
+
+Storage Concerns Debunked
+- Data storage cost is negligible in the modern context.
+- Example:
+  - 1 GB storage costs:
+    - AWS: 11.5 cents/month
+    - Azure: 17 cents/month
+  - Storing 100M products (~1.2 KB each) costs ~$14/month.
+- Storage is not a valid argument against this pattern.
+
+---
+
+Conclusion
+- Despite downsides (complexity, data duplication), this pattern provides superior performance and uptime.
+- Recommended for microservices needing high performance and independent operation.
+- The course will focus on this form of asynchronous communication, implementing:
+  - Services that emit events upon data changes.
+  - Event-driven databases optimized for specific queries.
+
+---
+
+Next Steps
+- Begin working on the first project to apply this communication pattern.
