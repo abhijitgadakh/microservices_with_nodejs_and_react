@@ -485,3 +485,328 @@ Testing PostCreate
 4. If there’s a CORS error, this will be addressed in the next video.
 
 This concludes the implementation of the `PostCreate` component.
+
+
+//---------------- 9. Handling CORS Errors
+
+In the last video, we tried to create a new post but encountered a CORS request error.
+
+CORS (Cross-Origin Resource Sharing) issues arise when we try to make a request to a domain or port different from our own. 
+
+For example, our React app runs on localhost:3000, and we are making a POST request to localhost:4000. Since the ports are different, the browser automatically blocks the request unless the server (localhost:4000) provides specific headers.
+
+This issue cannot be resolved by modifying the browser or React app. The solution lies in configuring the server.
+
+Steps to fix the issue:
+1. Stop both the Post and Comment services in the terminal.
+2. Install the `cors` package for both services by running:
+
+This package helps by setting the necessary headers to bypass the CORS restriction.
+
+3. Restart the Post and Comment services after installation.
+
+4. Open the code editor for the Post service. In the `index.js` file:
+- Require the `cors` module at the top of the file:
+  ```javascript
+  const cors = require('cors');
+  ```
+- Use it as middleware in the Express app:
+  ```javascript
+  app.use(cors());
+  ```
+- Ensure the `cors` function is called as a function.
+
+5. Repeat the same steps for the Comment service:
+- Require `cors` at the top.
+- Use it as middleware:
+  ```javascript
+  app.use(cors());
+  ```
+
+6. Save the changes and restart the services.
+
+Testing:
+- Go back to the browser and refresh the page.
+- Try creating a post again. If successful, the browser will no longer show CORS errors, and the response should return a status code of 201, indicating the post was created successfully.
+
+For future services:
+- Add the `cors` middleware from the start to avoid similar issues.
+
+In upcoming projects:
+- Architectural changes will prevent cross-origin requests, as APIs and frontends will be co-located.
+
+Next steps:
+- Begin working on the posts component.
+- Add functionality to list and create comments.
+
+
+//---------------- 10. Fetching and Rendering Posts
+
+We are working on PostList, CommentList, and CommentCreate components.
+These components are required to interact with React and will expose architectural issues in our microservices setup later on.
+
+To start, create a new file named `PostList.js` inside the `src` directory.
+- Import React at the top.
+- Create a functional component and export it as default.
+- Initially, return an empty `<div>`.
+
+Update `App.js` to display the `PostList` component:
+- Import `PostList`.
+- Add a horizontal rule (`<hr>`) and an `<h1>` tag labeled "Posts".
+- Render the `PostList` component below these elements.
+
+In `PostList.js`, we need to:
+1. Fetch a list of posts from the Post service.
+2. Store posts using React state.
+3. Display each post's title in a styled card.
+
+Start by importing the required modules:
+- Import `useState` and `useEffect` from React.
+- Import Axios for making HTTP requests.
+
+Define a state variable for storing posts:
+- Use `useState` to create a `posts` state variable with an initial value of an empty object.
+
+Define a function to fetch posts:
+- Use an `async` function named `fetchPosts`.
+- Make a GET request to `http://localhost:4000/posts`.
+- Extract the `data` from the Axios response and update the `posts` state using `setPosts`.
+
+Call `fetchPosts` using `useEffect`:
+- Use `useEffect` to ensure `fetchPosts` runs only once when the component mounts.
+- Pass an empty dependency array to `useEffect` to achieve this.
+
+Verify the fetched data:
+- Add a `console.log(posts)` after the `fetchPosts` call.
+- Confirm that the data matches the structure expected from the Post service.
+
+Render posts:
+- Use `Object.values(posts)` to iterate over the post objects.
+- For each post, return a `<div>` with a `key` set to `post.id`.
+- Style the `<div>` as a card with inline CSS and class names for layout and appearance.
+- Inside the card, display the post title using an `<h3>` tag.
+
+Finalize the component:
+- Wrap the rendered posts in a parent `<div>`.
+- Add class names to the parent `<div>` for styling and layout (e.g., `d-flex`, `flex-wrap`, `justify-content-between`).
+
+Test the implementation:
+- Ensure the posts appear as cards on the screen.
+- Create new posts using the PostCreate component and manually refresh the page to see the updates.
+- Note that real-time updates will require additional logic.
+
+Next steps will involve implementing the commenting functionality, starting with displaying and creating comments.
+
+
+//---------------- 11. Creating Comments
+
+Two new components need to be created: `CommentCreate` and `CommentList`. These are similar to previously created components.
+
+`CommentCreate`:
+1. Start with a new file `CommentCreate.js`.
+2. Import React and create the component:
+   ```jsx
+   import React, { useState } from 'react';
+
+   const CommentCreate = ({ postId }) => {
+       const [content, setContent] = useState('');
+
+       const onSubmit = async (e) => {
+           e.preventDefault();
+           await axios.post(`http://localhost:4001/posts/${postId}/comments`, { content });
+           setContent('');
+       };
+
+       return (
+           <div>
+               <form onSubmit={onSubmit}>
+                   <div className="form-group">
+                       <label>New Comment</label>
+                       <input
+                           value={content}
+                           onChange={(e) => setContent(e.target.value)}
+                           className="form-control"
+                       />
+                   </div>
+                   <button className="btn btn-primary">Submit</button>
+               </form>
+           </div>
+       );
+   };
+
+   export default CommentCreate;
+   ```
+
+3. Component represents a form where users can type and submit a comment.
+4. Requires the `postId` prop to associate the comment with a specific post.
+5. On form submission, makes a POST request to the comments microservice using `axios`.
+6. Clears the input field after successful submission.
+
+Adding `CommentCreate` to `PostList`:
+1. Import `CommentCreate` in `PostList.js`.
+   ```jsx
+   import CommentCreate from './CommentCreate';
+   ```
+2. Add `CommentCreate` below each post in the `PostList` component:
+   ```jsx
+   {posts.map(post => (
+       <div className="card" key={post.id}>
+           <div className="card-body">
+               <h3>{post.title}</h3>
+               <CommentCreate postId={post.id} />
+           </div>
+       </div>
+   ))}
+   ```
+3. Each instance of `CommentCreate` is passed the corresponding `postId`.
+
+Testing:
+1. Run the app.
+2. Verify that the comment form appears under each post.
+3. Enter a comment, submit, and confirm it is successfully sent to the backend by checking network requests.
+4. Ensure the input field clears after submission.
+
+Next, proceed to create the `CommentList` component.
+
+//---------------- 12. Displaying Comments
+
+Comment List Component Notes:
+
+- The goal is to manage the comment list component, allowing it to fetch and display comments for a post.
+- At the top of the file, import `React`, `useState`, `useEffect`, and `Axios`.
+
+Steps:
+1. Create a new file named `CommentList.js` in the `src` directory.
+2. Define a React functional component and export it by default.
+3. Initialize an empty div in the return statement as a placeholder.
+
+Responsibilities of the Component:
+- Manage its own data by fetching comments from the comment microservice.
+- The API endpoint used is `/posts/:postId/comments`, which returns an array of comments for a given post.
+- The post ID needs to be passed down as a prop from the parent component (`PostList`).
+
+Implementation:
+- Import necessary hooks and libraries: `useState`, `useEffect`, and `Axios`.
+- Define a state variable `comments` using `useState`, initializing it to an empty array since the API returns an array of comments.
+- Define an `async` function `fetchData` to fetch comments from the API.
+  - Use `Axios` to make a GET request to `http://localhost:4001/posts/${postId}/comments`.
+  - Update the `comments` state using the response data.
+- Use `useEffect` to call `fetchData` when the component mounts. Add an empty dependency array to ensure it runs only once.
+
+Rendering:
+- Map over the `comments` state to generate a list of `li` elements, each displaying the `content` of a comment.
+- Assign a unique `key` to each `li` using the `id` of the comment.
+- Wrap the list in a `ul` and return it in the render method.
+
+Integration:
+- Import `CommentList` in `PostList`.
+- Render `CommentList` for each post inside the `PostList` component's mapping function.
+- Pass the `postId` of each post as a prop to the `CommentList` component.
+
+Testing:
+- Test by adding and displaying comments for posts.
+- Refresh the page to see the comments since no reload logic is currently implemented.
+- Ensure that comments are displayed correctly and associated with the correct post.
+
+Observation:
+- For every post, a separate API request is made to fetch comments. This can lead to inefficiencies with a larger dataset.
+- Highlight this issue in the next video to explore potential optimizations.
+
+
+
+//---------------- 13. Request Minimization Strategies
+
+To optimize the inefficiency in our current implementation, we need to address how we fetch posts and their associated comments. 
+
+Currently, for every post fetched, a separate request is made to the comment service to retrieve comments. This results in multiple requests—one for each post—which is inefficient.
+
+The goal is to condense this into a single request that fetches all posts along with their associated comments.
+
+If this were a monolithic architecture, solving this would be straightforward:
+- A single GET request to `/posts` with a query like `?comments=true` could return all posts with embedded comments.
+
+However, since we're using microservices, the challenge is more complex. Our options are:
+1. **Synchronous Communication:**
+   - The post service would make a request to the comment service for each post ID.
+   - The comment service would reply with comments, which the post service combines with the relevant posts before sending the response to the browser.
+
+   Downsides:
+   - **Dependency:** The post service becomes dependent on the comment service. If the comment service is down, the post service fails.
+   - **Latency:** Adds a round-trip delay between services, slowing down the response to the browser.
+   - **Scalability Issues:** As more services are added, the system may create a chain of dependent requests, increasing the risk of failures and further delays.
+
+2. **Alternative Solution:**
+   - This approach avoids synchronous communication and its downsides.
+   - We will explore this in the next part of the lecture.
+
+The synchronous communication method, while conceptually simple, introduces engineering challenges and potential bottlenecks. An alternative strategy is necessary to build a more robust and scalable system.
+
+
+
+//---------------- 14. An Async Solution
+
+Using synchronous communication to solve the problem is easy to understand but not the best engineering solution. 
+In this video, we explore an alternative using asynchronous communication.
+
+Asynchronous communication often involves an event broker, which routes notifications (events) between services. 
+Here, we introduce a query service to handle and consolidate data efficiently.
+
+The query service listens for events emitted by other services. For example:
+- When a post is created, the post service emits a "post created" event containing the post's ID and title.
+- This event is sent to the event bus, which forwards it to the query service.
+- The query service processes the event and stores the post data, initializing a data structure that includes the post and an empty array for comments.
+
+Similarly:
+- When a comment is created, the comment service emits a "comment created" event with the comment's ID, content, and related post ID.
+- The event bus forwards this to the query service.
+- The query service locates the relevant post and appends the comment to its comments array.
+
+The query service can then respond to a single GET request from the client with all posts and their associated comments. 
+This eliminates the need for multiple requests between services.
+
+Pros of this asynchronous approach:
+- The query service has no direct dependencies on other services. It continues functioning even if other services fail.
+- It is much faster, as there are no inter-service requests during a client query.
+- It simplifies client-side operations with a single efficient request.
+
+Cons:
+- Data duplication occurs, as posts and comments are stored both in their respective services and in the query service. 
+  However, this redundancy can be beneficial and will be discussed later.
+- The implementation is complex, requiring awareness of all events and careful design of event processing.
+
+While harder to implement, the operational efficiency of this approach is superior, with fewer dependencies and faster query responses. 
+If any other service goes down, the query service remains functional.
+
+In the next video, we'll address some common concerns and questions about this approach. Stay tuned!
+
+
+
+//---------------- 15. Common Questions Around Async Events
+
+We’ve reviewed asynchronous communication multiple times, and now we’re addressing some common questions.
+
+1. **Do we need a third service to join data (e.g., posts and comments)?**
+   - Not necessarily. In a real-world scenario, related data like posts and comments could often exist within the same service to allow data joining at the code level. 
+   - The current example is purely educational, demonstrating how to store and replicate data across services.
+
+2. **Why does service independence matter if crashes are rare?**
+   - Microservices aim to enhance system reliability. Independence ensures most parts of the application remain functional even if one service fails.
+   - Reliability is a key reason for using microservices, and this architecture supports that goal.
+
+3. **Is this architecture too complex for the benefits it offers?**
+   - While it feels complex now, event-based architecture simplifies adding new features later.
+   - As the application grows, this approach can handle complexity more effectively than monolithic or synchronous communication methods.
+
+4. **What about special cases or corner scenarios?**
+   - Event-based architectures introduce unique challenges and corner cases.
+   - We’ll address these corner cases in-depth later in the course, providing solutions for many.
+   - If issues aren’t apparent now, don’t worry; understanding evolves with experience.
+
+With these clarifications in mind, we’ll move forward to implement:
+- The new query service.
+- The event bus.
+- Service communication via events.
+
+Implementation starts in the next video.
+
+

@@ -1,21 +1,23 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-
-
 const { randomBytes } = require("crypto");
 const { timeEnd } = require("console");
+const cors = require("cors");
 
 const app = express();
 
 app.use(bodyParser.json())
+app.use(cors());
 
 const commentsByPostId = {};
 
+// GET - http://localhost:4002/posts/:id/comments
 app.get("/posts/:id/comments", (req, res) => {
 
     res.send(commentsByPostId[req.params.id] || [])
 })
 
+// POST - http://localhost:4002/posts/:id/comments
 app.post("/posts/:id/comments", (req, res) => {
     const commentId = randomBytes(4).toString('hex');
     const { content } = req.body;
@@ -29,7 +31,6 @@ app.post("/posts/:id/comments", (req, res) => {
     res.status(201).send(comments);
 
 });
-
 
 app.listen(4002, () => {
     console.log('Listening on port 4002');
