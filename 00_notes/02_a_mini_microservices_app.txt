@@ -726,16 +726,16 @@ If this were a monolithic architecture, solving this would be straightforward:
 - A single GET request to `/posts` with a query like `?comments=true` could return all posts with embedded comments.
 
 However, since we're using microservices, the challenge is more complex. Our options are:
-1. **Synchronous Communication:**
+1. Synchronous Communication:
    - The post service would make a request to the comment service for each post ID.
    - The comment service would reply with comments, which the post service combines with the relevant posts before sending the response to the browser.
 
    Downsides:
-   - **Dependency:** The post service becomes dependent on the comment service. If the comment service is down, the post service fails.
-   - **Latency:** Adds a round-trip delay between services, slowing down the response to the browser.
-   - **Scalability Issues:** As more services are added, the system may create a chain of dependent requests, increasing the risk of failures and further delays.
+   - Dependency: The post service becomes dependent on the comment service. If the comment service is down, the post service fails.
+   - Latency: Adds a round-trip delay between services, slowing down the response to the browser.
+   - Scalability Issues: As more services are added, the system may create a chain of dependent requests, increasing the risk of failures and further delays.
 
-2. **Alternative Solution:**
+2. Alternative Solution:
    - This approach avoids synchronous communication and its downsides.
    - We will explore this in the next part of the lecture.
 
@@ -785,19 +785,19 @@ In the next video, we'll address some common concerns and questions about this a
 
 We’ve reviewed asynchronous communication multiple times, and now we’re addressing some common questions.
 
-1. **Do we need a third service to join data (e.g., posts and comments)?**
+1. Do we need a third service to join data (e.g., posts and comments)?
    - Not necessarily. In a real-world scenario, related data like posts and comments could often exist within the same service to allow data joining at the code level. 
    - The current example is purely educational, demonstrating how to store and replicate data across services.
 
-2. **Why does service independence matter if crashes are rare?**
+2. Why does service independence matter if crashes are rare?
    - Microservices aim to enhance system reliability. Independence ensures most parts of the application remain functional even if one service fails.
    - Reliability is a key reason for using microservices, and this architecture supports that goal.
 
-3. **Is this architecture too complex for the benefits it offers?**
+3. Is this architecture too complex for the benefits it offers?
    - While it feels complex now, event-based architecture simplifies adding new features later.
    - As the application grows, this approach can handle complexity more effectively than monolithic or synchronous communication methods.
 
-4. **What about special cases or corner scenarios?**
+4. What about special cases or corner scenarios?
    - Event-based architectures introduce unique challenges and corner cases.
    - We’ll address these corner cases in-depth later in the course, providing solutions for many.
    - If issues aren’t apparent now, don’t worry; understanding evolves with experience.
@@ -810,3 +810,253 @@ With these clarifications in mind, we’ll move forward to implement:
 Implementation starts in the next video.
 
 
+//---------------- 16. Event Bus Overview
+
+Notes on Event Bus Design:
+
+1. Purpose of the Event Bus:
+   - Facilitates communication of events between different services.
+   - Allows one service to emit an event and others to listen to it.
+
+2. Building the Event Bus:
+   - It will be built from scratch using JavaScript and Express.
+   - Focus on understanding the underlying mechanisms, not on advanced features.
+
+3. Event Bus Implementations:
+   - Examples: RabbitMQ, Kafka, NATS, etc.
+   - These are open-source projects with features to receive and publish events to listeners.
+   - Events can be any data format (JSON, raw bytes, strings, etc.).
+
+4. Listeners:
+   - Other services listening to events emitted by the event bus.
+
+5. Trade-offs with Different Event Buses:
+   - Various implementations have unique features making some tasks easier or harder.
+   - It's crucial to evaluate which implementation suits your application's needs.
+
+6. Simplistic Design Approach:
+   - The event bus being built in this project will be extremely simple.
+   - It won't have the extensive features of production-grade event buses.
+   - The goal is to understand the flow of data and mechanics.
+
+7. How the Event Bus Works:
+   - Services will have routes that handle POST requests to `/events`.
+   - When a service emits an event, it will send a POST request to the event bus.
+   - The event bus will:
+     - Receive the event.
+     - Forward the event to all services (including the originating service) via POST requests.
+
+8. Flow of Events:
+   - Example:
+     - A service emits an event via a POST request to the event bus.
+     - The event bus forwards the event to:
+       - `http://localhost:4000/events` (Post service)
+       - `http://localhost:4001/events` (Another service)
+       - `http://localhost:4002/events` (Another service)
+     - The event is identical in all forwarded requests.
+
+9. Purpose of Building a Custom Event Bus:
+   - Provides a clear understanding of the data flow.
+   - Simplifies debugging and learning about inter-service communication.
+
+10. Next Steps:
+    - Start coding the event bus implementation.
+    - Understand and implement the basic POST request handling for event broadcasting.
+
+
+//---------------- 17. A Basic Event Bus Implementation
+
+Notes on Event Bus Implementation:
+
+1. Creating the Event Bus Directory:
+   - Inside the main project directory (e.g., "blog"), create a new folder named `event-bus`.
+   - Open a terminal for this new directory.
+
+2. Setting Up the Project:
+   - Initialize the project: `npm init -y`.
+   - Install dependencies: `npm install express body-parser axios`.
+
+3. Project Structure:
+   - Create an `index.js` file inside the `event-bus` folder.
+
+4. Initial Setup in `index.js`:
+   - Import required modules: `express`, `body-parser`, and `axios`.
+   - Create an Express application.
+   - Use `body-parser` middleware to handle JSON data: `app.use(bodyParser.json());`.
+
+5. Implementing the `/events` Endpoint:
+   - Create a POST request handler for the `/events` path.
+   - Extract the incoming event from `req.body`.
+   - Forward the event to other services using Axios POST requests:
+     - `http://localhost:4000/events` (Post Service)
+     - `http://localhost:4001/events` (Comments Service)
+     - `http://localhost:4002/events` (Query Service)
+   - Send a response indicating success: `res.send({ status: 'OK' });`.
+
+6. Error Handling Note:
+   - The current implementation assumes all POST requests will succeed.
+   - There’s no handling for failed requests, which will be addressed later.
+
+7. Starting the Server:
+   - Set the app to listen on port `4005`.
+   - Log a message: `console.log('Listening on 4005');`.
+
+8. Updating `package.json`:
+   - Modify the `scripts` section to include a start script:
+     - `"start": "nodemon index.js"`.
+
+9. Running the Event Bus:
+   - Open a terminal for the `event-bus` directory.
+   - Run the start script: `npm start`.
+   - Verify the server is running with the message `Listening on 4005`.
+
+10. Next Steps:
+    - Implement event emission in other services (Post and Comments) to send events to the event bus.
+    - Ensure smooth integration and event forwarding. 
+
+
+//---------------- 18. Emitting Events
+
+Notes:
+
+- Initial implementation of the event bus has been set up.
+- The event bus will handle requests from services like the postal service and common service whenever significant events occur, such as creating a new post or comment.
+- The event bus will echo these events to all services running in the application.
+
+- Current Status:
+  - Services lack the necessary `post /events` endpoint.
+  - Requests sent to these endpoints fail with a 404 error.
+  - Next step: Implement these endpoints to allow services to listen to events emitted by the event bus.
+
+- Focus for now:
+  - Ensure the post service emits an event whenever a new post is created.
+
+- Development Workflow:
+  - Open all service directories in one editor for easier navigation.
+  - Locate the `index.js` file of the post service.
+  - Add Axios as a dependency to handle HTTP requests.
+
+- Implementation Steps:
+  1. Identify the post creation endpoint.
+  2. Use Axios to emit an event after a new post is added to the collection.
+     - Event structure:
+       - `type`: Describes the event (e.g., `PostCreated`).
+       - `data`: Contains additional information, such as the created post (ID and title).
+  3. Add async/await to handle the asynchronous request.
+
+- Event Design:
+  - Events should have a consistent structure: a `type` property and a `data` property.
+  - Flexibility to include any data structure, but consistency is preferred.
+
+- Testing:
+  - Restart the post service (posts stored in memory will disappear upon restart).
+  - Create a new post and verify its presence by refreshing the React application.
+  - Check terminal logs:
+    - Post service should log the emitted event.
+    - Event bus logs should show any 404 errors when sending the event to unimplemented endpoints.
+
+- Observations:
+  - Errors (status 404) are expected since other services lack the `post /events` endpoint.
+  - Event emission from the post service to the event bus is functioning as intended.
+
+- Next Steps:
+  - Implement `post /events` endpoints in all services to handle received events.
+  - Continue refining the event schema and ensuring consistency across services.
+
+//---------------- 19. Emitting Comment Creation Events
+
+Notes:
+
+- Objective:
+  - Ensure that the comment service emits an event to the event bus whenever a new comment is created.
+
+- Event Structure:
+  - `type`: "CommentCreated"
+  - `data`: Includes the comment details:
+    - `id`: Comment ID
+    - `content`: Content of the comment
+    - `postId`: ID of the post the comment is tied to
+
+- Process Overview:
+  - Event bus will broadcast the emitted event to all services.
+  - 404 errors are expected since other services do not yet have endpoints to receive these events.
+
+- Steps to Implement:
+  1. Open the `index.js` file inside the comments service directory.
+  2. Import Axios at the top of the file to handle HTTP requests.
+  3. Locate the code handling the creation of a new comment.
+  4. After saving the new comment, add the following code to emit an event:
+     ```javascript
+     await axios.post('http://localhost:4005/events', {
+         type: 'CommentCreated',
+         data: {
+             id: comment.id,
+             content: comment.content,
+             postId: req.params.id
+         }
+     });
+     ```
+  5. Use `async/await` for asynchronous operations.
+
+- Testing:
+  - Create a new comment in the application.
+  - Verify that the comment appears after refreshing the page.
+  - Check terminal logs to confirm the event bus is emitting events.
+  - Observe 404 errors, which are expected at this stage.
+
+- Observations:
+  - Two services (post service and comment service) now emit events for significant actions.
+  - Services currently do not have endpoints to process received events.
+  - Query service, once created, will handle and process incoming events that are relevant.
+
+- Next Steps:
+  - Implement event handlers in all services to process emitted events.
+  - Develop the query service to manage and react to incoming events.
+
+
+//---------------- 20. Receiving Events
+
+Notes:
+
+- Objective:
+  - Add event handlers for the post service and comment service to handle incoming events from the event bus.
+
+- Steps to Implement for Post Service:
+  1. Open the `index.js` file inside the post service directory.
+  2. At the bottom of the file, above the `listen` method, add a new POST request handler for the `/events` route.
+  3. Log the received event type for debugging purposes:
+     ```javascript
+     app.post('/events', (req, res) => {
+         console.log('Event Received:', req.body.type);
+         res.send({});
+     });
+     ```
+
+- Steps to Implement for Comment Service:
+  1. Open the `index.js` file inside the comment service directory.
+  2. At the bottom of the file, above the `listen` method, add a new POST request handler for the `/events` route.
+  3. Log the received event type for debugging purposes:
+     ```javascript
+     app.post('/events', (req, res) => {
+         console.log('Event Received:', req.body.type);
+         res.send({});
+     });
+     ```
+
+- Testing the Implementation:
+  1. Restart all services to ensure the changes are applied.
+  2. In the browser, create a new post and add comments to it.
+  3. Verify that:
+     - The post and comments are displayed after refreshing the page.
+     - Logs in the terminal show received events for both post and comment services.
+  4. Confirm 404 errors from the event bus when trying to send events to non-existent endpoints (e.g., query service).
+
+- Observations:
+  - The post service and comment service can now receive and log incoming events.
+  - Event bus successfully broadcasts events to all services.
+  - 404 errors are expected for services that do not yet exist or handle events.
+
+- Next Steps:
+  - Implement the query service to listen for `PostCreated` and `CommentCreated` events.
+  - Process incoming events to assemble a usable data structure for the application.
+  - Ensure the query service handles data aggregation as planned in the diagrams.
