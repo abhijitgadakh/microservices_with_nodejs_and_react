@@ -1,0 +1,988 @@
+//---------------- 19. Emitting Comment Creation Events
+
+Notes:
+
+- Objective:
+  - Ensure that the comment service emits an event to the event bus whenever a new comment is created.
+
+- Event Structure:
+  - `type`: "CommentCreated"
+  - `data`: Includes the comment details:
+    - `id`: Comment ID
+    - `content`: Content of the comment
+    - `postId`: ID of the post the comment is tied to
+
+- Process Overview:
+  - Event bus will broadcast the emitted event to all services.
+  - 404 errors are expected since other services do not yet have endpoints to receive these events.
+
+- Steps to Implement:
+  1. Open the `index.js` file inside the comments service directory.
+  2. Import Axios at the top of the file to handle HTTP requests.
+  3. Locate the code handling the creation of a new comment.
+  4. After saving the new comment, add the following code to emit an event:
+     ```javascript
+     await axios.post('http://localhost:4005/events', {
+         type: 'CommentCreated',
+         data: {
+             id: comment.id,
+             content: comment.content,
+             postId: req.params.id
+         }
+     });
+     ```
+  5. Use `async/await` for asynchronous operations.
+
+- Testing:
+  - Create a new comment in the application.
+  - Verify that the comment appears after refreshing the page.
+  - Check terminal logs to confirm the event bus is emitting events.
+  - Observe 404 errors, which are expected at this stage.
+
+- Observations:
+  - Two services (post service and comment service) now emit events for significant actions.
+  - Services currently do not have endpoints to process received events.
+  - Query service, once created, will handle and process incoming events that are relevant.
+
+- Next Steps:
+  - Implement event handlers in all services to process emitted events.
+  - Develop the query service to manage and react to incoming events.
+
+
+//---------------- 20. Receiving Events
+
+Notes:
+
+- Objective:
+  - Add event handlers for the post service and comment service to handle incoming events from the event bus.
+
+- Steps to Implement for Post Service:
+  1. Open the `index.js` file inside the post service directory.
+  2. At the bottom of the file, above the `listen` method, add a new POST request handler for the `/events` route.
+  3. Log the received event type for debugging purposes:
+     ```javascript
+     app.post('/events', (req, res) => {
+         console.log('Event Received:', req.body.type);
+         res.send({});
+     });
+     ```
+
+- Steps to Implement for Comment Service:
+  1. Open the `index.js` file inside the comment service directory.
+  2. At the bottom of the file, above the `listen` method, add a new POST request handler for the `/events` route.
+  3. Log the received event type for debugging purposes:
+     ```javascript
+     app.post('/events', (req, res) => {
+         console.log('Event Received:', req.body.type);
+         res.send({});
+     });
+     ```
+
+- Testing the Implementation:
+  1. Restart all services to ensure the changes are applied.
+  2. In the browser, create a new post and add comments to it.
+  3. Verify that:
+     - The post and comments are displayed after refreshing the page.
+     - Logs in the terminal show received events for both post and comment services.
+  4. Confirm 404 errors from the event bus when trying to send events to non-existent endpoints (e.g., query service).
+
+- Observations:
+  - The post service and comment service can now receive and log incoming events.
+  - Event bus successfully broadcasts events to all services.
+  - 404 errors are expected for services that do not yet exist or handle events.
+
+- Next Steps:
+  - Implement the query service to listen for `PostCreated` and `CommentCreated` events.
+  - Process incoming events to assemble a usable data structure for the application.
+  - Ensure the query service handles data aggregation as planned in the diagrams.
+
+
+//---------------- 21. Creating the Data Query Service
+
+Notes on Query Service Implementation:
+
+- Goal of the Query Service:
+  - Provide a single service to fetch all posts and their associated comments.
+  - Handle one request to fetch all required data.
+
+- Key Features:
+  1. Event Handling:
+     - Receives events from the event bus.
+     - Focuses on `post created` and `comment created` events.
+     - Extracts data from events and assembles them into an easily accessible structure.
+
+  2. API Endpoints:
+     - GET `/posts`: Returns all posts and related comments.
+     - POST `/events`: Accepts events sent by the event bus.
+
+- Steps to Start Query Service:
+  1. Open a terminal window and navigate to the `blog` directory.
+  2. Create a new folder named `query` and navigate into it.
+  3. Generate a `package.json` file using `npm init -y`.
+  4. Install dependencies:
+     - `express`: Web framework.
+     - `cors`: Enables Cross-Origin Resource Sharing.
+  5. Skip installing `axios` since this service doesn’t emit events.
+
+- Setting up the Express Application:
+  1. Create a file named `index.js` inside the `query` directory.
+  2. Import required modules:
+     - `express`, `body-parser`, and `cors`.
+  3. Initialize the app and set up middleware:
+     - Use `body-parser` for JSON parsing.
+     - Enable `cors`.
+
+- Define Handlers:
+  - GET `/posts`: Placeholder for fetching posts.
+  - POST `/events`: Placeholder for handling events.
+
+- Start the Server:
+  - Use `app.listen` on port `4002`.
+  - Log a message to confirm the server is running.
+
+- Testing the Setup:
+  1. Save the file and add a start script in `package.json`:
+     ```json
+     "start": "nodemon index.js"
+     ```
+  2. Install `nodemon` using `npm install nodemon`.
+  3. Run the project with `npm start` and ensure no errors occur.
+
+- Next Steps:
+  - Implement the logic for the `/events` and `/posts` endpoints.
+  - Handle `post created` and `comment created` events effectively.
+  - Ensure all posts and comments can be retrieved correctly via the `/posts` endpoint.
+
+//---------------- 22. Parsing Incoming Events
+
+Notes on Handling Events in Query Service:
+
+- Purpose:
+  - Ensure the query service can process `post created` and `comment created` events.
+  - Save posts and comments into a structured data object.
+
+- Data Structure:
+  - Use a simple object to store posts and comments.
+  - Example structure:
+    ```javascript
+    posts = {
+      "postId1": {
+        id: "postId1",
+        title: "Post Title",
+        comments: [
+          { id: "commentId1", content: "Comment content" },
+          { id: "commentId2", content: "Another comment" }
+        ]
+      },
+      "postId2": {
+        id: "postId2",
+        title: "Another Post",
+        comments: []
+      }
+    }
+    ```
+
+- Event Handling Logic:
+  - Extract `type` and `data` properties from the request body.
+  - Handle `post created` events:
+    - Extract `id` and `title` from the event data.
+    - Add a new entry to the `posts` object:
+      ```javascript
+      posts[id] = { id, title, comments: [] };
+      ```
+  - Handle `comment created` events:
+    - Extract `id`, `content`, and `postId` from the event data.
+    - Find the appropriate post using `postId`.
+    - Push the new comment into the `comments` array of the post:
+      ```javascript
+      posts[postId].comments.push({ id, content });
+      ```
+
+- Responding to Requests:
+  - For POST `/events`:
+    - Process the event.
+    - Respond with an empty object to indicate successful processing.
+  - For GET `/posts`:
+    - Respond with the entire `posts` object.
+
+- Testing:
+  - Add console logs after processing events to debug the current state of the `posts` object.
+  - Example:
+    ```javascript
+    console.log(posts);
+    ```
+  - Verify no errors occur when creating posts and comments.
+
+- Next Steps:
+  - Update the React application to fetch data from the query service's `/posts` endpoint.
+  - Use the returned data structure to list posts and their comments in the React app.
+
+- Observations:
+  - Console logs confirm that the query service processes `post created` and `comment created` events correctly.
+  - The data structure updates as expected, reflecting all posts and their associated comments.
+
+
+//---------------- 23. Using the Query Service
+
+Notes on Updating React Application to Use Query Service:
+
+- Transition Objective:
+  - Modify the React application to fetch all required data from the query service instead of making direct requests to the post and comment services.
+
+- Background:
+  - Previously, the React app made direct GET requests to:
+    - Post service for posts.
+    - Comment service for comments.
+  - Now, React should make a single GET request to the query service (running on port 4002) to fetch all posts and their associated comments.
+
+- Implementation Steps:
+  1. Open the React application project.
+  2. Locate the `PostList` component in `client/src/components/PostList.js`.
+  3. Update the fetch logic to query `http://localhost:4002/posts`.
+     ```javascript
+     useEffect(() => {
+       const fetchPosts = async () => {
+         const response = await axios.get('http://localhost:4002/posts');
+         console.log(response.data); // Inspect the fetched data
+       };
+       fetchPosts();
+     }, []);
+     ```
+  4. Validate that the data structure returned by the query service includes posts with embedded comments.
+  5. Pass the comments from each post directly to the `CommentList` component:
+     ```javascript
+     <CommentList comments={post.comments} />
+     ```
+  6. Modify the `CommentList` component to stop making its own GET requests:
+     - Remove state and `useEffect` for fetching comments.
+     - Update props to directly receive a list of comments.
+       ```javascript
+       const CommentList = ({ comments }) => {
+         return (
+           <ul>
+             {comments.map(comment => (
+               <li key={comment.id}>{comment.content}</li>
+             ))}
+           </ul>
+         );
+       };
+       ```
+
+- Key Observations:
+  - After implementing the changes, the React app fetches all posts and comments with a single request to the query service.
+  - Console logs confirm that the data is fetched correctly and displayed as expected.
+
+- Benefits:
+  - Reduced network requests by consolidating data fetching into a single query.
+  - Improved app efficiency and performance.
+  - Enhanced fault tolerance: the app can still display data even if some services are down, as long as the query service is running.
+
+- Testing:
+  - Verify that posts and comments display correctly.
+  - Test adding new posts and comments to ensure the app behaves as expected.
+  - Check browser network logs to confirm only one request is made to the query service.
+
+- Additional Notes:
+  - The query service enables independent operation of the app by consolidating data from multiple services.
+  - If post or comment services are down, users can still view existing data, although creating new posts or comments will fail.
+
+
+//---------------- 24. Adding a Simple Feature
+
+Notes on Updating React Application to Use Query Service:
+
+- Transition Objective:
+  - Modify the React application to fetch all required data from the query service instead of making direct requests to the post and comment services.
+
+- Background:
+  - Previously, the React app made direct GET requests to:
+    - Post service for posts.
+    - Comment service for comments.
+  - Now, React should make a single GET request to the query service (running on port 4002) to fetch all posts and their associated comments.
+
+- Implementation Steps:
+  1. Open the React application project.
+  2. Locate the `PostList` component in `client/src/components/PostList.js`.
+  3. Update the fetch logic to query `http://localhost:4002/posts`.
+     ```javascript
+     useEffect(() => {
+       const fetchPosts = async () => {
+         const response = await axios.get('http://localhost:4002/posts');
+         console.log(response.data); // Inspect the fetched data
+       };
+       fetchPosts();
+     }, []);
+     ```
+  4. Validate that the data structure returned by the query service includes posts with embedded comments.
+  5. Pass the comments from each post directly to the `CommentList` component:
+     ```javascript
+     <CommentList comments={post.comments} />
+     ```
+  6. Modify the `CommentList` component to stop making its own GET requests:
+     - Remove state and `useEffect` for fetching comments.
+     - Update props to directly receive a list of comments.
+       ```javascript
+       const CommentList = ({ comments }) => {
+         return (
+           <ul>
+             {comments.map(comment => (
+               <li key={comment.id}>{comment.content}</li>
+             ))}
+           </ul>
+         );
+       };
+       ```
+
+- Key Observations:
+  - After implementing the changes, the React app fetches all posts and comments with a single request to the query service.
+  - Console logs confirm that the data is fetched correctly and displayed as expected.
+
+- Benefits:
+  - Reduced network requests by consolidating data fetching into a single query.
+  - Improved app efficiency and performance.
+  - Enhanced fault tolerance: the app can still display data even if some services are down, as long as the query service is running.
+
+- Testing:
+  - Verify that posts and comments display correctly.
+  - Test adding new posts and comments to ensure the app behaves as expected.
+  - Check browser network logs to confirm only one request is made to the query service.
+
+- Additional Notes:
+  - The query service enables independent operation of the app by consolidating data from multiple services.
+  - If post or comment services are down, users can still view existing data, although creating new posts or comments will fail.
+
+Notes on Adding Comment Moderation Feature:
+
+- Objective:
+  - Implement a new feature for comment moderation.
+
+- Overview:
+  - The goal is to examine the content of every submitted comment.
+  - Comments containing specific words will be flagged.
+
+- Feature Details:
+  - Initially, the filter will flag comments with the word "orange".
+  - Flagged comments will be marked as not permitted.
+
+- Design Considerations:
+  1. Avoid hardcoding filter logic in the React app.
+     - This prevents redeployment when the filter list changes.
+  2. Create a separate service for moderation logic.
+     - Simplifies the React app and allows dynamic filter updates.
+  3. Assume moderation might take significant time (e.g., minutes or hours).
+
+- Mockup Behavior:
+  - Comments can be in three states:
+    - Approved: Displayed to the user.
+    - Pending: Shown as "awaiting moderation."
+    - Rejected: Indicated as filtered due to inappropriate content.
+  - React app must differentiate between these states.
+
+- Implementation Changes:
+  - Update the comment structure to include a `status` field.
+     - Possible values: `approved`, `rejected`, `pending`.
+     - Status determines how comments are displayed.
+  - Example:
+     ```javascript
+     const comments = [
+       { id: '1', content: 'This is fine.', status: 'approved' },
+       { id: '2', content: 'Awaiting review.', status: 'pending' },
+       { id: '3', content: 'Contains orange.', status: 'rejected' }
+     ];
+     ```
+
+- Complexity:
+  - While the feature seems simple, it introduces hidden challenges:
+    - Handling asynchronous moderation.
+    - Integrating the new service with existing systems.
+
+- Next Steps:
+  - Review the current app design.
+  - Plan updates to support moderation.
+  - Address challenges during implementation.
+
+
+
+//---------------- 25. Issues with Comment Filtering
+
+Notes on Updating React Application to Use Query Service:
+
+- Transition Objective:
+  - Modify the React application to fetch all required data from the query service instead of making direct requests to the post and comment services.
+
+- Background:
+  - Previously, the React app made direct GET requests to:
+    - Post service for posts.
+    - Comment service for comments.
+  - Now, React should make a single GET request to the query service (running on port 4002) to fetch all posts and their associated comments.
+
+- Implementation Steps:
+  1. Open the React application project.
+  2. Locate the `PostList` component in `client/src/components/PostList.js`.
+  3. Update the fetch logic to query `http://localhost:4002/posts`.
+     ```javascript
+     useEffect(() => {
+       const fetchPosts = async () => {
+         const response = await axios.get('http://localhost:4002/posts');
+         console.log(response.data); // Inspect the fetched data
+       };
+       fetchPosts();
+     }, []);
+     ```
+  4. Validate that the data structure returned by the query service includes posts with embedded comments.
+  5. Pass the comments from each post directly to the `CommentList` component:
+     ```javascript
+     <CommentList comments={post.comments} />
+     ```
+  6. Modify the `CommentList` component to stop making its own GET requests:
+     - Remove state and `useEffect` for fetching comments.
+     - Update props to directly receive a list of comments.
+       ```javascript
+       const CommentList = ({ comments }) => {
+         return (
+           <ul>
+             {comments.map(comment => (
+               <li key={comment.id}>{comment.content}</li>
+             ))}
+           </ul>
+         );
+       };
+       ```
+
+- Key Observations:
+  - After implementing the changes, the React app fetches all posts and comments with a single request to the query service.
+  - Console logs confirm that the data is fetched correctly and displayed as expected.
+
+- Benefits:
+  - Reduced network requests by consolidating data fetching into a single query.
+  - Improved app efficiency and performance.
+  - Enhanced fault tolerance: the app can still display data even if some services are down, as long as the query service is running.
+
+- Testing:
+  - Verify that posts and comments display correctly.
+  - Test adding new posts and comments to ensure the app behaves as expected.
+  - Check browser network logs to confirm only one request is made to the query service.
+
+- Additional Notes:
+  - The query service enables independent operation of the app by consolidating data from multiple services.
+  - If post or comment services are down, users can still view existing data, although creating new posts or comments will fail.
+
+Notes on Adding Comment Moderation Feature:
+
+- Objective:
+  - Implement a new feature for comment moderation.
+
+- Overview:
+  - The goal is to examine the content of every submitted comment.
+  - Comments containing specific words will be flagged.
+
+- Feature Details:
+  - Initially, the filter will flag comments with the word "orange".
+  - Flagged comments will be marked as not permitted.
+
+- Design Considerations:
+  1. Avoid hardcoding filter logic in the React app.
+     - This prevents redeployment when the filter list changes.
+  2. Create a separate service for moderation logic.
+     - Simplifies the React app and allows dynamic filter updates.
+  3. Assume moderation might take significant time (e.g., minutes or hours).
+
+- Mockup Behavior:
+  - Comments can be in three states:
+    - Approved: Displayed to the user.
+    - Pending: Shown as "awaiting moderation."
+    - Rejected: Indicated as filtered due to inappropriate content.
+  - React app must differentiate between these states.
+
+- Implementation Changes:
+  - Update the comment structure to include a `status` field.
+     - Possible values: `approved`, `rejected`, `pending`.
+     - Status determines how comments are displayed.
+  - Example:
+     ```javascript
+     const comments = [
+       { id: '1', content: 'This is fine.', status: 'approved' },
+       { id: '2', content: 'Awaiting review.', status: 'pending' },
+       { id: '3', content: 'Contains orange.', status: 'rejected' }
+     ];
+     ```
+
+- Complexity:
+  - While the feature seems simple, it introduces hidden challenges:
+    - Handling asynchronous moderation.
+    - Integrating the new service with existing systems.
+
+- Next Steps:
+  - Review the current app design.
+  - Plan updates to support moderation.
+  - Address challenges during implementation.
+
+Notes on Microservices Implementation for Comment Moderation:
+
+- Overview of Current System:
+  - User submits a comment to the comment service.
+  - Comment service emits a `commentCreated` event to the event bus.
+  - Event bus forwards the event to all services.
+  - Query service processes the event and stores the new comment.
+
+- New Moderation Service:
+  - A new service is introduced to review comments.
+  - Moderation service decides if a comment is approved or rejected based on its content.
+  - Moderation emits a `commentModerated` event with the comment's status.
+
+- Workflow Details:
+  - User submits a comment to the comment service.
+  - Comment service emits `commentCreated` event.
+  - Moderation service processes the comment:
+    - If content includes the word "orange," it is flagged.
+    - Moderation emits `commentModerated` event with status (`approved` or `rejected`).
+  - Query service updates the comment's status and persists it.
+
+- Pros:
+  - Consolidates comment status handling.
+  - Scalable: Separate services handle moderation and queries.
+
+- Cons:
+  - Potential delays if moderation takes time.
+  - Users might not immediately see pending comments.
+
+- User Experience Considerations:
+  - Show "pending" status to users after submitting comments.
+  - Ensure clear communication of moderation delays.
+
+- Future Directions:
+  - Consider adding human moderation for complex cases.
+  - Explore AI-based moderation for faster processing.
+
+
+//---------------- 26. A Second Approach
+
+Notes on Option Two for Comment Moderation:
+
+Transition Objective:
+Modify the existing moderation process by introducing Option Two to address limitations of the previous approach.
+
+Overview of Option Two:
+- Option Two is similar to Option One but introduces a small yet significant change.
+- Key difference: Query service processes events immediately upon comment creation.
+
+Detailed Workflow:
+1. A user submits a comment to the comment service.
+2. The comment service emits a `commentCreated` event.
+3. The event is sent to both the moderation service and the query service.
+4. Query service persists the comment immediately with a default `pending` status.
+5. User sees the comment with a "pending moderation" status upon refreshing the page.
+6. Moderation service reviews the comment asynchronously and emits a `commentModerated` event.
+7. Query service updates the comment's status to `approved`, `rejected`, or another state based on moderation results.
+
+Advantages of Option Two:
+- Users can see their comments immediately after submission, enhancing user experience.
+- Clear communication to users that the comment is awaiting moderation.
+
+Persistent Challenges:
+- Query service becomes responsible for processing various precise updates to comments, such as:
+  - Changing status to `approved` or `rejected`.
+  - Handling additional updates like upvotes, downvotes, or promotions.
+
+Design Considerations:
+- Query service’s primary role is presentation logic: joining, storing, and serving data.
+- Introducing business logic for precise updates may complicate its responsibilities.
+
+Potential Scalability Issues:
+- Real-world commenting systems may require handling numerous types of updates, including:
+  - Moderation decisions (approved/rejected).
+  - Upvotes/downvotes.
+  - Flagging comments as searchable or anonymous.
+  - Marking comments as promoted or paid.
+- Each type of update introduces specific business logic, increasing complexity.
+
+Risks of Overloading Query Service:
+- Over time, query service may need to process multiple complex updates.
+- Similar issues could arise in other services managing comments, like recommendation engines or analytics services.
+- Leads to duplication of update logic across multiple services.
+
+Conclusion:
+- While Option Two addresses immediate user experience concerns, it introduces complexity in query service responsibilities.
+- This approach may not scale well with increasing types of comment updates.
+
+Next Steps:
+- Evaluate Option Three to address scalability and maintainability concerns.
+
+
+
+//---------------- 27. How to Handle Resource Updates
+
+Notes on Option Three for Comment Moderation:
+
+Identified Issue in Option Two:
+- The query service processes specific updates to comments, such as the `commentModerated` event.
+- This approach creates unnecessary complexity by requiring the query service to understand precise business logic for updates.
+
+Solution in Option Three:
+- Delegate precise updates to the comment service, which is responsible for defining and managing comment attributes and business logic.
+- Introduce a generic event system to simplify updates across services.
+
+Workflow in Option Three:
+1. User submits a comment to the comment service.
+2. The comment service:
+   - Persists the comment with an initial status (e.g., `pending`).
+   - Emits a `commentCreated` event to the event bus.
+3. The event bus:
+   - Sends the `commentCreated` event to both the moderation service and query service.
+   - Query service updates its records immediately to display the new comment.
+4. Moderation service processes the comment asynchronously and emits a `commentModerated` event.
+5. Comment service:
+   - Receives the `commentModerated` event.
+   - Updates the comment (e.g., changing the status to `approved` or `rejected`).
+   - Emits a `commentUpdated` event to the event bus.
+6. Query service:
+   - Receives the `commentUpdated` event.
+   - Updates its stored attributes for the comment without interpreting business logic.
+
+Advantages of Option Three:
+- Centralized Business Logic:
+  - The comment service handles all domain-specific updates.
+  - Query service only receives generic updates, reducing complexity.
+- Simplified Event Handling:
+  - `commentUpdated` event provides all updated attributes, allowing services to store the latest state without interpreting changes.
+- Scalability:
+  - Additional comment updates (e.g., upvotes, promotions) are managed by the comment service, avoiding duplication of logic across services.
+  - Query service remains focused on presentation logic.
+
+Implementation Highlights:
+- Specialized updates like moderation decisions are isolated in the comment service.
+- Generic updates (`commentUpdated` event) allow other services to remain loosely coupled to the core business logic.
+
+Conclusion:
+- Option Three addresses the complexity and scalability issues of Option Two.
+- By centralizing domain-specific logic, it maintains clarity and separation of concerns.
+
+Next Steps:
+- Begin implementing Option Three in the application architecture.
+- Focus on creating specialized and generic event patterns to manage updates effectively.
+
+
+
+//---------------- 28. Creating the Moderation Service
+
+Notes on Moderation Service Setup:
+
+Introduction:
+In the previous discussion, we chose Option Three for implementing moderation in our system. Now, we will begin setting up the Moderation Service, focusing on its foundational structure.
+
+Steps to Create the Moderation Service:
+1. Changes Needed:
+   - Update the Common Service and Security Service.
+   - Introduce the new Moderation Service.
+
+2. Initial Setup:
+   - Create a new folder named `Moderation` inside the blog project directory.
+   - Open a terminal, navigate to the `Moderation` folder, and initialize a new package with `npm init`.
+   - Install dependencies:
+     - `axios`
+     - `express`
+     - Exclude `cors` since the front-end won't directly interact with the Moderation Service.
+
+3. Boilerplate Code:
+   - Create an `index.js` file inside the `Moderation` directory.
+   - Import required modules:
+     - `express`
+     - `body-parser`
+     - `axios`
+   - Initialize an Express application and configure middleware for JSON parsing.
+
+4. Core Functionality:
+   - Add a single route handler for processing events (`POST /events`).
+   - Define a listening port (4003) for the Moderation Service.
+   - Console log to confirm the service is running.
+
+Example Code:
+```javascript
+const express = require('express');
+const bodyParser = require('body-parser');
+const axios = require('axios');
+
+const app = express();
+app.use(bodyParser.json());
+
+app.post('/events', (req, res) => {
+    // Placeholder for event handling logic
+    res.send({});
+});
+
+app.listen(4003, () => {
+    console.log('Listening on port 4003');
+});
+```
+
+5. Testing the Setup:
+   - Update `package.json` to include a start script: `"start": "nodemon index.js"`.
+   - Run the Moderation Service with `npm start`.
+   - Verify that the service is listening on port 4003.
+
+6. Next Steps:
+   - Implement logic for handling `commentCreated` events.
+   - Ensure the service emits `commentModerated` events upon processing.
+
+Conclusion:
+This foundational setup ensures the Moderation Service is ready to handle events and integrate seamlessly with other services in the system.
+
+
+//---------------- 29. Adding Comment Moderation
+
+Now that we've set up the boilerplate for the moderation service, we need to make changes across all three services. The changes will involve modifying existing events and adding new ones. 
+
+The process we will follow is to walk through the workflow of a user submitting a comment and ensure that each service is appropriately updated.
+
+When a user submits a comment:
+1. Right now, we are persisting the comment inside the comment service. But we also need to store the comment's status — whether it's pending, approved, or rejected.
+2. We’ll add the status field to the comment object. By default, the status will be 'pending'.
+
+In the comment service:
+1. Open the comment service in the code editor and locate the post request handler.
+2. Review the code where a new comment is created, where we generate a random ID and retrieve the content.
+3. Modify the object to add a status property with the value 'pending'.
+
+Next step:
+1. Whenever we create a new comment, we immediately emit the 'commentCreated' event, which goes to the event bus and is sent to the moderation service and query service.
+2. We send this event to the query service so that the comment is stored immediately and displayed to the user, without waiting for the moderation event.
+
+In the query service:
+1. When handling the 'commentCreated' event, we need to make sure it includes the status property, and this status should be saved as well.
+2. In the Common Service, modify the event to include the 'status' property, so that when it reaches the query service, the comment's status is already 'pending'.
+3. In the query service, when we receive the event, ensure that the 'status' is persisted along with the comment.
+
+Now, let's move to the moderation service:
+1. The goal in the moderation service is to look at the content of the comment. If the comment contains the word "orange", we’ll reject it; otherwise, we’ll approve it.
+2. In the moderation service, we need to emit a new event, 'commentModerated', with the appropriate status (either 'rejected' or 'approved') based on the comment's content.
+
+We’ll continue from here in the next step to complete the moderation service.
+
+
+//---------------- 30. Handling Moderation
+
+Now, we need to update the moderation service to handle the 'commentCreated' event.
+
+In the moderation service:
+1. We’ll start by setting up a POST request handler to listen for incoming events from the event broker.
+2. When an event is received, the event data is contained in the request body. From this, we extract the event type and its associated data.
+3. We’ll check if the event type is 'commentCreated'. If it is, we will proceed with moderation logic.
+4. To determine whether to approve or reject the comment, we'll set up a ternary expression that checks if the comment content includes the word "orange". If it does, we will reject the comment; otherwise, we will approve it.
+
+Once we’ve determined the status:
+1. We’ll create a 'commentModerated' event.
+2. The event will be sent to the event bus, including the comment ID, post ID, status (approved or rejected), and content.
+
+A few things to note:
+1. We pulled properties like 'id', 'postId', and 'content' from the event based on what we remember. In a real system, it’s easy to forget these properties, so documentation is crucial to track what’s inside each event.
+2. We will mark the function as async, ensuring that the request handler does not hang.
+3. After processing the comment moderation, we must send a response to avoid the request hanging.
+
+Next, we need to ensure that the event bus sends events to the moderation service. Since the moderation service was added after the event bus, it’s not yet configured to receive events.
+
+In the event bus:
+1. We need to update the event bus to send events to the moderation service as well. The moderation service is running on port 4003, so we will add a route for it.
+2. After updating the event bus, save the changes and close the file.
+
+Now, we are up to the point where the 'commentModerated' event is created and sent to the event bus. In the next video, we’ll focus on handling this event in the comment service, updating the status, and emitting a 'commentUpdated' event.
+
+
+//---------------- 31. Updating Comment Content
+
+In this step, we're going to make sure that the Common Service listens for the 'commentModerated' event, updates the comment’s status based on the event, and then emits a 'commentUpdated' event.
+
+1. First, we need to make sure the Common Service listens for the 'commentModerated' event.
+2. The 'commentModerated' event contains the following properties: id, content, postId, and status (which can be either 'approved' or 'rejected').
+3. Once we receive this event in the Common Service:
+   - We pull off the necessary properties (id, content, postId, and status) from the event data.
+   - We then retrieve the comments associated with the postId and find the comment with the matching ID.
+   - Once we find the correct comment, we update its status to match the status from the 'commentModerated' event.
+
+4. It's important to note that we don't need to insert the updated comment back into the array since the comment object is already the same in memory.
+
+5. After updating the status, we need to notify other services that the comment has been updated. 
+   - We do this by emitting a 'commentUpdated' event, which includes the updated status, comment ID, postId, and content.
+
+6. To emit the event:
+   - We use Axios to send a POST request to the event bus at `http://localhost:4005`.
+   - The event data includes the comment ID, updated status, post ID, and content.
+   - We need to mark the function as async and send the request.
+
+7. Once we’ve emitted the 'commentUpdated' event, the next step is to make sure the query service receives this event and processes the update. We will address that in the next section.
+
+Make sure to check the documentation for the 'commentUpdated' event properties to understand how it should be structured.
+
+
+//---------------- 32. A Quick Test
+
+The next step is to open up the query service and watch for the 'commentUpdated' event. Whenever this event is triggered, we need to find the appropriate comment in memory and update its status to match the status inside the event.
+
+1. Open the query service and locate the index file where events are handled.
+2. Add an if statement to check for the event type 'commentUpdated'.
+3. Pull the updated ID, content, postId, and status from the event data.
+4. Retrieve the post associated with the given postId.
+5. Inside the post, find the appropriate comment using its ID.
+6. Update the comment's status based on the status in the event. We should also check if the content was updated and update it as well.
+7. Assign the updated content to the comment object directly.
+8. No need to save the comment back in memory since the object is already in the post.
+
+While working on this, it's normal to feel like this process is a bit complicated. Handling multiple services and events can get messy, especially if you're managing them across different services. At this point, it's clear that we need better tools or methodologies for managing these event definitions as this process could get more complex in larger applications.
+
+Now, it's time to test if the moderation process works. There’s no frontend yet to show approved or rejected statuses, so we’ll check the network requests.
+
+1. Open the terminal and ensure no errors are shown. Errors here may indicate a typo or issue in your code.
+2. Go to the browser, refresh the page, and create a new post.
+3. Add a comment to the post and check the terminal for any errors. Ideally, there should be no errors.
+4. Inspect the network requests in the browser and check the comments associated with the post.
+5. If everything is working, the comment will show as 'approved' or 'rejected' based on the moderation process.
+
+To test the rejection process, add a comment that meets the rejection criteria (e.g., contains the word 'orange') and check if the status changes accordingly.
+ 
+Lastly, the React application needs to display the status of comments. If a comment is rejected, it should show the status as 'rejected'. If it is still in the pending state, it should show that it's still being moderated.
+
+In the next steps, we’ll focus on updating the React app to show the correct statuses for the comments.
+
+//---------------- 33. Rendering Comments by Status
+
+First, let's open the React application and make changes to the list of comments.
+
+1. Navigate to the client directory and find the comment list rendering code inside the component.
+2. In the `commentList` component, comments are rendered inside a loop, and we want to adjust the content based on the comment's status.
+3. Declare a variable `content` and set its value based on the comment status:
+   - If the status is 'approved', set `content` to the actual comment content.
+   - If the status is 'pending', set `content` to "This comment is awaiting moderation."
+   - If the status is 'rejected', set `content` to "This comment has been rejected."
+4. We could refactor the if-else statements into a switch statement, but that’s optional.
+5. Instead of displaying the original comment content, show the value of the `content` variable.
+6. Save the changes and check the result in the browser. The comment containing "orange" (which was rejected) will show the message "This comment has been rejected."
+
+Next, let's simulate a case where moderation does not happen immediately.
+
+1. We want to see the case where a comment is stuck in the 'pending' state for a while. For this, we can stop the moderation service temporarily.
+2. Go to the terminal where the moderation service is running and stop it.
+3. Create a new comment, and since the moderation service is down, the comment will remain in the 'pending' state.
+4. Refresh the page, and the comment will show "This comment is awaiting moderation."
+
+Now, let's consider a downside of our application.
+
+1. After turning off the moderation service and creating a comment, when the moderation service is restarted, we face a problem.
+2. The event bus tried to send events while the moderation service was down, causing a loss of events in that window.
+3. Now the application is out of sync, and we don’t have a way to catch up and process the missed events.
+4. We should think about a strategy to handle this scenario and ensure the application remains in sync even after temporary downtimes.
+
+
+
+//---------------- 34. Dealing with Missing Events
+
+The application is working well, but there’s an issue with services going down temporarily. Let's dive into the problem and potential solutions.
+
+1. The issue arises when a service, like the moderation service, goes down for a while. 
+   - When we created a comment while moderation was down, it got stuck in the 'pending' state and couldn't move forward.
+   - The challenge here is: How do we deal with this when a service goes down for a period of time?
+
+2. To visualize the problem, here's a time sequence diagram:
+   - Our event bus and services (like posts, comments, and moderation) run throughout the application’s lifetime.
+   - Events flow between services when they are up and running.
+   - If the moderation service is down for a period, the event bus sends events to post and comment services but fails to send them to the moderation service.
+   - When moderation comes back online, it has missed those events, leading to a problem with synchronization.
+
+3. Another possible scenario is when a new service (e.g., query service) is created in the future.
+   - This new service may have missed events from other services (like posts and comments).
+   - We need a strategy to get this new service in sync with existing data.
+
+4. Solutions to handle these situations:
+   - Option 1: Synchronous requests
+     - The query service could make synchronous requests to the post and comment services to get all existing data.
+     - This approach would require implementing new endpoints to fetch all posts and comments, which may not be ideal in production.
+     - Once synchronized, the query service would start receiving new events from posts and comments.
+     - The downside: Implementing synchronous requests may lead to a bottleneck and extra work to handle these requests.
+
+   - Option 2: Direct database access
+     - Query service could access the databases directly (e.g., MySQL for posts, MongoDB for comments).
+     - This would allow it to query the data directly instead of relying on synchronous network requests.
+     - The downside: Query service would need to be aware of multiple database systems (e.g., MySQL and MongoDB), adding complexity to the code.
+
+   - Option 3: Event storage (Chosen approach)
+     - The query service can get synchronized by accessing all events that have been emitted by the event bus, even those that happened in the past.
+     - The event bus stores all events in a data store (not in memory, but in a persistent database).
+     - When a new service like query comes online, it can retrieve all the stored events from the event bus.
+     - This approach works without adding complexity to the query service's code since it can handle these events just like any other events emitted in real time.
+     - The main burden here is the event store growing over time, but it’s a more scalable solution.
+
+5. This approach also solves the issue of service downtime:
+   - For example, if moderation misses events while it’s down, once it comes back online, it can ask the event bus for all events it missed during the downtime.
+   - The event bus can send the missed events, bringing the moderation service back in sync.
+
+6. The chosen solution is to store events in the event bus and let any service that comes online in the future retrieve those events to sync up with the rest of the system.
+
+This strategy ensures that our system remains robust even when services go down or new services are introduced in the future.
+
+
+//---------------- 35. Implementing Event Sync
+
+In this video, we are implementing option three in our application. We'll start by taking down our query service and creating some posts and comments. Then we'll launch our query service and check if it can communicate with the event bus to retrieve events that have occurred.
+
+It's important to remember that we're building a home-grown event bus, and real-world open-source event buses are more sophisticated than what we're doing here. This is for learning purposes only, and the code shouldn't be used in production environments.
+
+The first step is to ensure that every event received by the event bus gets stored in an array. We'll add a new endpoint to allow retrieval of all events. So, when we launch the query service, it should reach out to the event bus and request all the events that have occurred.
+
+ Steps for Event Bus:
+1. In the event bus, create a variable `events` as an array to store events.
+2. In the post request handler, whenever we receive an event, push it into the `events` array.
+3. The most recent event will be at the end of the array, and the first event will be at the front.
+4. Add another endpoint for `/events` to retrieve all events stored in the array.
+
+Real event buses are much more complex, but this example shows how services can sync after being down or disconnected.
+
+ Steps for Query Service:
+1. In the query service, we need to extract logic from the `post` request handler into a reusable function, `handleEvent`. This makes it easier to process events from different locations.
+2. Inside the `post` request handler, cut the event-handling logic and place it in the `handleEvent` function.
+3. The `handleEvent` function will take `type` and `data` as arguments, allowing it to process the event.
+4. After extracting the event-handling logic, update the `post` request handler to call `handleEvent` with the event's `type` and `data`.
+
+Next, when the query service is online, right after listening on port 4000, we need to make a request to the event bus to get all events that have occurred so far. We do this by using `Axios` to send a `GET` request to `localhost:4000/events`. This will return all the events.
+
+ Additional Steps for Query Service:
+1. Use `await Axios.get` to retrieve the list of events from the event bus.
+2. Iterate through the events using a `for...of` loop, or `forEach`, and process each event.
+3. Log the event type and call `handleEvent` to process the event with its data.
+
+Finally, test the implementation by saving the changes and running the application.
+
+//---------------- 36. Event Syncing in Action
+
+In the last video, we implemented some sync code inside our query service. However, we encountered an issue where Axios was not yet installed in our query service. To fix this, we need to require Axios at the top of our file.
+
+ Steps to Install Axios:
+1. Go to the top of the query service file and add `require('axios')`.
+2. Stop the current server and install Axios using `npm install axios`.
+3. Restart the server.
+
+After installing Axios, we need to ensure that we can effectively test the query service. So, let's stop the service and make sure we don't have access to it. We can try creating posts, comments, etc., and the event bus will store these events. Once the query service is up, it should fetch all the events it missed.
+
+ Testing the Query Service:
+1. Make sure the query service is not running.
+2. Open the browser, refresh the page, and expect an error since the query service is down.
+3. Create a post (e.g., "New Post") and submit it. Since the query service is down, you'll still create the post, but no events will be processed.
+4. Refresh the page again and get another error.
+5. Go to the terminal and launch the query service.
+6. Once the query service starts, it should reach out to the event bus and process the events it missed (e.g., "post created").
+7. Refresh the browser, and the post will appear, confirming that the query service fetched and processed the missed events.
+
+ Testing with Comments:
+1. Stop the query service again.
+2. Create a couple of comments, including one invalid comment.
+3. Refresh the page and notice no new data due to the query service being down.
+4. Relaunch the query service, and it will process all the missed events, including the valid and rejected comments.
+5. Refresh the page again to confirm the query service is up-to-date with posts and comments.
+
+This approach solves the issue where a service is temporarily down and misses events. It works well for situations where services may go offline for short periods. 
+
+ Persistent Data Considerations:
+Currently, we are using in-memory data storage, which is lost when a service goes down. In real-world applications, we might use a database to store data persistently. However, processing the same event multiple times can cause issues when using persistent data.
+
+This is something we will address in future applications, where we can handle corner cases and persistent data properly.
+
+The sync event strategy is useful, and we will continue to build on this as we move forward with our projects.
+
+
